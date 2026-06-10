@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, redirect, session
 import docker
 import subprocess
 
+
+
 app = Flask(__name__)
 app.secret_key = "cyberarena_secret"
 
@@ -20,7 +22,7 @@ CHALLENGES = {
         "tar": "cookie-challenge.tar",
     },
     "idor": {
-        "image": "idor-challenge",
+        "image": "idor challenge",
         "tar": "idor-challenge.tar",
     },
     "roman": {
