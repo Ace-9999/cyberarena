@@ -3,65 +3,42 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import TerminalPanel from '../components/TerminalPanel';
 import FlagSubmit from '../components/FlagSubmit';
+import { useInstances } from '../context/InstancesContext';
+import { useProgress } from '../context/ProgressContext';
 
 export default function ChallengeDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [challenge, setChallenge] = useState(null);
-  const [instance, setInstance] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { instances, deploy: contextDeploy, stop: contextStop } = useInstances();
+  const { challenges, solvedList, markSolved, loading } = useProgress();
+  const instance = instances[id];
   const [deploying, setDeploying] = useState(false);
-  const [solved, setSolved] = useState(() => {
-    const saved = localStorage.getItem('solved_challenges');
-    return saved ? JSON.parse(saved).includes(id) : false;
-  });
 
-  const markSolved = () => {
-    const saved = localStorage.getItem('solved_challenges');
-    const solvedList = saved ? JSON.parse(saved) : [];
-    if (!solvedList.includes(id)) {
-      solvedList.push(id);
-      localStorage.setItem('solved_challenges', JSON.stringify(solvedList));
-    }
-    setSolved(true);
-  };
+  const challenge = challenges.find(c => c.id === id);
+  const solved = solvedList.includes(id);
 
   useEffect(() => {
-    apiClient.get('/challenges')
-      .then(data => {
-        const found = data.find(c => c.id === id);
-        if (found) setChallenge(found);
-        else navigate('/challenges');
-        setLoading(false);
-      })
-      .catch(console.error);
-  }, [id, navigate]);
+    if (challenge) {
+      document.title = `Cyber Arena | ${challenge.name}`;
+    } else {
+      document.title = "Cyber Arena | Challenge";
+    }
+  }, [challenge]);
 
   useEffect(() => {
-    let interval = null;
-    if (instance) {
-      interval = setInterval(() => {
-        apiClient.post(`/challenges/${id}/heartbeat`, { container_id: instance.container_id })
-          .catch(console.error);
-      }, 30000); // 30 seconds
+    if (!loading && !challenge) {
+      navigate('/challenges');
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [instance, id]);
+  }, [loading, challenge, navigate]);
 
-  const handleReturn = async () => {
-    if (instance) {
-      await stop();
-    }
+  const handleReturn = () => {
     navigate('/challenges');
   };
 
   const deploy = async () => {
     setDeploying(true);
     try {
-      const res = await apiClient.post(`/challenges/${id}/deploy`);
-      setInstance(res);
+      await contextDeploy(id);
     } catch (err) {
       alert("Error deploying: " + err.message);
     }
@@ -69,13 +46,7 @@ export default function ChallengeDetail() {
   };
 
   const stop = async () => {
-    if (!instance) return;
-    try {
-      await apiClient.post(`/challenges/${id}/stop`, { container_id: instance.container_id });
-      setInstance(null);
-    } catch (err) {
-      console.error(err);
-    }
+    await contextStop(id);
   };
 
   const restart = async () => {
@@ -86,7 +57,7 @@ export default function ChallengeDetail() {
   const submitFlag = async (flag) => {
     const res = await apiClient.post(`/challenges/${id}/submit`, { flag });
     if (res.correct) {
-      markSolved();
+      markSolved(id);
       setTimeout(() => {
         stop();
       }, 3000);

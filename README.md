@@ -9,9 +9,11 @@ For an in-depth, step-by-step technical breakdown of how the API and container l
 ## 🚀 Features
 
 - **React SPA Frontend:** A sleek, fully animated, dark hacker-themed interface that runs in the browser without page reloads.
-- **On-Demand Challenge Spawning:** Launches containerized environments only when requested, saving system resources.
+- **Global Instance Management:** Run multiple challenges side-by-side. Instance state is synced globally and across tabs, allowing you to navigate freely without losing active shells.
+- **Live Score HUD & Leaderboard:** Global point synchronization instantly updates your score in the HUD when a challenge is solved. View competitive progression via simulated multi-line charts and category analytics on the Leaderboard.
+- **Bulk Operations:** Deploy all unsolved challenges at once or forcefully terminate all active instances with a single click directly from the directory.
 - **Dynamic Port Mapping:** Runs multiple challenges simultaneously without port conflicts.
-- **Smart Heartbeat System:** Containers stay alive as long as you are actively playing on the page, and are automatically destroyed when you close the tab or solve the challenge.
+- **Smart Heartbeat System:** A global background loop keeps your containers alive as long as you have any application tab open, and auto-destroys them after 2 minutes of inactivity to save resources.
 - **Auto Image Loader:** Automatically loads challenge Docker images directly from pre-packaged `.tar` files if they aren't already in your Docker library.
 
 ---

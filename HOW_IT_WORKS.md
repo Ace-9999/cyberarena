@@ -41,9 +41,10 @@ When you click a challenge and hit **[ DEPLOY INSTANCE ]**, the heavy lifting be
 6. Flask returns the random port number to React. React displays the clickable target link `http://localhost:<random_port>`.
 
 ### D. The Dynamic Heartbeat (`/api/challenges/<id>/heartbeat`)
-We do not use a strict countdown timer. Instead, we keep the container alive as long as you are actively playing:
-1. While the `ChallengeDetail.jsx` page is open, React sets up a `setInterval` that sends a tiny `POST` request to the `/heartbeat` API every 30 seconds.
-2. Flask receives the ping and updates the container's `last_heartbeat` timestamp to the current time.
+We do not use a strict countdown timer. Instead, we keep the container alive as long as you are actively playing via a **Global Instances Context**:
+1. When you deploy a challenge, React stores the connection info in a global state that is synced to `localStorage`.
+2. A single `setInterval` runs in the background of the application, looping through all active containers and sending a tiny `POST` request to the `/heartbeat` API for each one every 30 seconds.
+3. Flask receives the pings and updates the `last_heartbeat` timestamp for each container to the current time. This allows you to have multiple containers running across different browser tabs simultaneously.
 
 ### E. Submitting the Flag (`/api/challenges/<id>/submit`)
 1. You find the flag in the container and paste it into the React terminal input.
@@ -77,8 +78,8 @@ cyberarena/
 │   └── src/
 │       ├── api/client.js       # Centralized fetch wrappers for API calls
 │       ├── components/         # Reusable React UI (GlitchLogo, TerminalPanel, etc.)
-│       ├── context/            # AuthContext for session management
-│       ├── pages/              # Main routes (Landing, Login, Challenges, ChallengeDetail)
+│       ├── context/            # AuthContext, InstancesContext, and ProgressContext (global state)
+│       ├── pages/              # Main routes (Landing, Login, Challenges, Leaderboard, ChallengeDetail)
 │       └── App.jsx             # React Router configuration
 └── README.md                   # Setup instructions
 ```

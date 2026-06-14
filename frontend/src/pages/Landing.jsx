@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GlitchLogo from '../components/GlitchLogo';
 import Ticker from '../components/Ticker';
 
 export default function Landing() {
+  useEffect(() => {
+    document.title = "Cyber Arena | Welcome";
+  }, []);
   const navigate = useNavigate();
 
   return (

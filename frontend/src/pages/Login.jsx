@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../api/client';
@@ -6,6 +6,9 @@ import TerminalPanel from '../components/TerminalPanel';
 import GlitchLogo from '../components/GlitchLogo';
 
 export default function Login() {
+  useEffect(() => {
+    document.title = "Cyber Arena | Authentication";
+  }, []);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
