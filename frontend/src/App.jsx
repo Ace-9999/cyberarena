@@ -7,10 +7,11 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Challenges from './pages/Challenges';
 import ChallengeDetail from './pages/ChallengeDetail';
-import MatrixRain from './components/MatrixRain';
-import ScoreDisplay from './components/ScoreDisplay';
+import NavBar from './components/NavBar';
 
 import Leaderboard from './pages/Leaderboard';
+import Profile from './pages/Profile';
+import Teams from './pages/Teams';
 
 const ProtectedRoute = ({ children }) => {
   const { token } = useAuth();
@@ -23,9 +24,8 @@ export default function App() {
     <AuthProvider>
       <ProgressProvider>
         <InstancesProvider>
-          <MatrixRain />
           <BrowserRouter>
-            <ScoreDisplay />
+            <NavBar />
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
@@ -37,6 +37,16 @@ export default function App() {
               <Route path="/leaderboard" element={
                 <ProtectedRoute>
                   <Leaderboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } />
+              <Route path="/teams" element={
+                <ProtectedRoute>
+                  <Teams />
                 </ProtectedRoute>
               } />
               <Route path="/challenges/:id" element={

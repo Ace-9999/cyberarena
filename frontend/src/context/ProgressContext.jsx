@@ -1,64 +1,52 @@
-import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { apiClient } from '../api/client';
+import { useAuth } from './AuthContext';
 
 const ProgressContext = createContext(null);
 
 export function ProgressProvider({ children }) {
+  const { token } = useAuth();
   const [challenges, setChallenges] = useState([]);
   const [solvedList, setSolvedList] = useState([]);
+  const [firstBloods, setFirstBloods] = useState([]);
+  const [points, setPoints] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Initialize from localStorage and fetch challenges
+  // Challenges are public — load once.
   useEffect(() => {
-    const saved = localStorage.getItem('solved_challenges');
-    if (saved) {
-      setSolvedList(JSON.parse(saved));
-    }
-
     apiClient.get('/challenges')
-      .then(data => {
-        setChallenges(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Failed to load challenges", err);
-        setLoading(false);
-      });
+      .then(setChallenges)
+      .catch(err => console.error('Failed to load challenges', err))
+      .finally(() => setLoading(false));
   }, []);
 
-  // Update localStorage whenever solvedList changes
-  useEffect(() => {
-    localStorage.setItem('solved_challenges', JSON.stringify(solvedList));
-  }, [solvedList]);
+  // Per-user progress comes from the server (authoritative, includes first-blood bonus).
+  const refreshProgress = useCallback(async () => {
+    if (!token) {
+      setSolvedList([]);
+      setFirstBloods([]);
+      setPoints(0);
+      return;
+    }
+    try {
+      const res = await apiClient.get('/me/progress');
+      setSolvedList(res.solved || []);
+      setFirstBloods(res.first_bloods || []);
+      setPoints(res.points || 0);
+    } catch (err) {
+      console.error('Failed to load progress', err);
+    }
+  }, [token]);
+
+  useEffect(() => { refreshProgress(); }, [refreshProgress]);
 
   const markSolved = (id) => {
-    setSolvedList(prev => {
-      if (!prev.includes(id)) {
-        return [...prev, id];
-      }
-      return prev;
-    });
+    setSolvedList(prev => (prev.includes(id) ? prev : [...prev, id]));
+    refreshProgress(); // pull authoritative points + first-blood status
   };
 
-  const points = useMemo(() => {
-    return challenges
-      .filter(c => solvedList.includes(c.id))
-      .reduce((sum, c) => sum + c.points, 0);
-  }, [challenges, solvedList]);
-
-  const value = {
-    challenges,
-    solvedList,
-    loading,
-    points,
-    markSolved
-  };
-
-  return (
-    <ProgressContext.Provider value={value}>
-      {children}
-    </ProgressContext.Provider>
-  );
+  const value = { challenges, solvedList, firstBloods, points, loading, markSolved, refreshProgress };
+  return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;
 }
 
 export const useProgress = () => useContext(ProgressContext);

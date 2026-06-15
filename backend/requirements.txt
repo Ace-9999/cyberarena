@@ -2,3 +2,6 @@ flask
 docker
 flask-cors
 APScheduler
+psycopg2-binary
+PyJWT
+python-dotenv

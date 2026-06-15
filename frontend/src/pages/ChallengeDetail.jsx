@@ -10,12 +10,13 @@ export default function ChallengeDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { instances, deploy: contextDeploy, stop: contextStop } = useInstances();
-  const { challenges, solvedList, markSolved, loading } = useProgress();
+  const { challenges, solvedList, firstBloods, markSolved, loading } = useProgress();
   const instance = instances[id];
   const [deploying, setDeploying] = useState(false);
 
   const challenge = challenges.find(c => c.id === id);
   const solved = solvedList.includes(id);
+  const isFirstBlood = firstBloods.includes(id);
 
   useEffect(() => {
     if (challenge) {
@@ -30,10 +31,6 @@ export default function ChallengeDetail() {
       navigate('/challenges');
     }
   }, [loading, challenge, navigate]);
-
-  const handleReturn = () => {
-    navigate('/challenges');
-  };
 
   const deploy = async () => {
     setDeploying(true);
@@ -70,24 +67,44 @@ export default function ChallengeDetail() {
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
-      <button onClick={handleReturn} className="mono" style={{ background: 'transparent', border: 'none', color: 'var(--green)', cursor: 'pointer', marginBottom: '1rem' }}>
-        &lt; RETURN TO DIRECTORY
-      </button>
-
       <TerminalPanel title={`MODULE_${id.toUpperCase()}`}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <h2 style={{ color: 'var(--green)', marginTop: 0 }}>{challenge.name}</h2>
           {solved && <span className="mono" style={{ background: 'var(--green)', color: 'black', padding: '0.3rem 0.6rem', fontSize: '1rem', fontWeight: 'bold' }}>SOLVED</span>}
         </div>
-        <div className="mono" style={{ display: 'flex', gap: '2rem', color: 'var(--amber)', marginBottom: '1rem' }}>
+        <div className="mono" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', color: 'var(--amber)', marginBottom: '1rem' }}>
           <span>CAT: {challenge.category}</span>
           <span>PTS: {challenge.points}</span>
+          <span className={`diff-badge diff-${(challenge.difficulty || 'easy').toLowerCase()}`}>{challenge.difficulty}</span>
         </div>
         <p>{challenge.description}</p>
-        
+
+        {solved && (
+          <div className="mono" style={{
+            marginTop: '1rem',
+            padding: '0.8rem 1rem',
+            border: '1px solid var(--green)',
+            background: 'rgba(57,255,136,0.08)',
+            color: 'var(--green)',
+            textShadow: '0 0 10px rgba(57,255,136,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            flexWrap: 'wrap',
+          }}>
+            <span>✓ ACCESS GRANTED — YOU HAVE ALREADY CAPTURED THIS FLAG</span>
+            {isFirstBlood && (
+              <span className="first-blood" style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                🩸 FIRST BLOOD
+              </span>
+            )}
+          </div>
+        )}
+
         {!instance && !deploying && (
-          <button onClick={deploy} className="mono" style={{ background: 'var(--green)', color: 'black', border: 'none', padding: '0.5rem 1rem', marginTop: '1rem', cursor: 'pointer', fontWeight: 'bold' }}>
-            [ DEPLOY INSTANCE ]
+          <button onClick={deploy} className="mono" style={{ background: solved ? 'transparent' : 'var(--green)', color: solved ? 'var(--green)' : 'black', border: solved ? '1px solid var(--green)' : 'none', padding: '0.5rem 1rem', marginTop: '1rem', cursor: 'pointer', fontWeight: 'bold' }}>
+            {solved ? '[ REDEPLOY TO PRACTICE ]' : '[ DEPLOY INSTANCE ]'}
           </button>
         )}
         

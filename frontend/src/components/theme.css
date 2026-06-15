@@ -1,26 +1,37 @@
-/* theme.css */
+/* theme.css — CyberArena terminal/hacker theme */
 :root {
   --bg: #05080a;
+  --bg-soft: #0a1014;
   --green: #39ff88;
   --amber: #ffb000;
   --red: #ff3333;
+  --cyan: #00e5ff;
+  --purple: #c084fc;
   --text: #e0e0e0;
+  --muted: #6b7280;
   --panel-bg: rgba(5, 8, 10, 0.85);
   --border: #39ff88;
 }
 
+* { box-sizing: border-box; }
+
 body {
   background-color: var(--bg);
   color: var(--text);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   margin: 0;
   padding: 0;
+  /* subtle CRT scanlines */
+  background-image: repeating-linear-gradient(
+    0deg, rgba(0, 0, 0, 0.15) 0px, rgba(0, 0, 0, 0.15) 1px, transparent 1px, transparent 3px
+  );
 }
 
 .mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
 }
 
+/* ---------- Terminal panel ---------- */
 .terminal-panel {
   border: 1px solid var(--border);
   background: var(--panel-bg);
@@ -35,42 +46,155 @@ body {
   align-items: center;
 }
 
-.terminal-body {
-  padding: 1rem;
-}
+.terminal-body { padding: 1rem; }
 
-.dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  margin-left: 5px;
-}
-
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-left: 5px; }
 .dot.red { background: var(--red); }
 .dot.amber { background: var(--amber); }
 .dot.green { background: var(--green); }
 
-.challenge-card {
-  height: 100%;
-}
-
+/* ---------- Challenge cards ---------- */
+.challenge-card { height: 100%; }
 .challenge-card .terminal-panel {
   height: 100%;
   margin: 0;
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  will-change: transform;
+  /* Only animate transform + border (both cheap). box-shadow is applied
+     instantly on hover, not transitioned, to avoid per-frame shadow repaints. */
+  transition: transform 0.18s ease, border-color 0.18s ease;
 }
-
 .challenge-card .terminal-panel .terminal-body {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
+  flex-grow: 1; display: flex; flex-direction: column;
+}
+.challenge-card:hover .terminal-panel {
+  transform: translateY(-4px);
+  /* 4th value (spread) = thickness of the glow band */
+  box-shadow: 0 0 22px 6px rgba(57, 255, 136, 0.4), 0 10px 24px rgba(0, 0, 0, 0.55);
+  border-color: var(--cyan);
 }
 
-.challenge-card:hover .terminal-panel {
-  transform: scale(1.03);
-  box-shadow: 0 0 20px var(--green), 0 0 40px #00ffff, inset 0 0 15px rgba(57, 255, 136, 0.3);
-  border-color: #00ffff;
+/* ---------- Difficulty badges ---------- */
+.diff-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid;
+  border-radius: 2px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: bold;
 }
+.diff-easy   { color: var(--green);  border-color: var(--green);  background: rgba(57,255,136,0.08); }
+.diff-medium { color: var(--amber);  border-color: var(--amber);  background: rgba(255,176,0,0.08); }
+.diff-hard   { color: var(--red);    border-color: var(--red);    background: rgba(255,51,51,0.08); }
+.diff-insane { color: var(--purple); border-color: var(--purple); background: rgba(192,132,252,0.08); }
+
+/* ---------- Buttons ---------- */
+.btn {
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--green);
+  color: #000;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.15); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--green);
+  color: var(--green);
+}
+.btn-ghost:hover:not(:disabled) { background: rgba(57,255,136,0.12); filter: none; }
+
+/* ---------- Inputs ---------- */
+.field {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--green);
+  color: var(--text);
+  padding: 0.55rem;
+  outline: none;
+  font-family: 'JetBrains Mono', monospace;
+  transition: box-shadow 0.15s ease;
+}
+.field:focus { box-shadow: 0 0 8px rgba(57, 255, 136, 0.45); }
+
+/* ---------- Glitch logo ---------- */
+.glitch {
+  position: relative;
+  display: inline-block;
+}
+.glitch::before, .glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%;
+  overflow: hidden;
+  clip-path: inset(0 0 0 0);
+}
+.glitch::before { color: var(--cyan); animation: glitch-top 2.5s infinite linear alternate-reverse; }
+.glitch::after  { color: var(--red);  animation: glitch-bottom 2s infinite linear alternate-reverse; }
+@keyframes glitch-top {
+  0%, 92%, 100% { transform: translate(0,0); opacity: 0; }
+  93% { transform: translate(-2px,-2px); opacity: 0.7; }
+  95% { transform: translate(2px,1px);  opacity: 0.7; }
+  97% { transform: translate(-1px,1px); opacity: 0.7; }
+}
+@keyframes glitch-bottom {
+  0%, 90%, 100% { transform: translate(0,0); opacity: 0; }
+  91% { transform: translate(2px,2px);  opacity: 0.6; }
+  94% { transform: translate(-2px,-1px); opacity: 0.6; }
+  96% { transform: translate(1px,-1px); opacity: 0.6; }
+}
+
+/* ---------- Ticker ---------- */
+.ticker-wrap { overflow: hidden; white-space: nowrap; }
+.ticker-track {
+  display: inline-block;
+  white-space: nowrap;
+  animation: ticker-scroll 30s linear infinite;
+}
+.ticker-wrap:hover .ticker-track { animation-play-state: paused; }
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ---------- Misc animations ---------- */
+@keyframes blink { 50% { opacity: 0; } }
+.caret { animation: blink 1s step-end infinite; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeInUp 0.4s ease both; }
+
+@keyframes pulse-blood {
+  0%, 100% { box-shadow: 0 0 2px rgba(255, 51, 51, 0.35); }
+  50%      { box-shadow: 0 0 7px rgba(255, 51, 51, 0.5); }
+}
+.first-blood {
+  color: var(--red);
+  border: 1px solid var(--red);
+  background: rgba(255,51,51,0.1);
+  animation: pulse-blood 1.6s ease-in-out infinite;
+}
+
+/* ---------- Scrollbar ---------- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: rgba(57,255,136,0.3); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: rgba(57,255,136,0.5); }
+
+/* ---------- Tables ---------- */
+table.lb { width: 100%; border-collapse: collapse; }
+table.lb th { text-align: left; padding: 0.5rem; color: var(--green); border-bottom: 1px solid var(--green); }
+table.lb td { padding: 0.5rem; border-bottom: 1px solid rgba(57,255,136,0.1); }
