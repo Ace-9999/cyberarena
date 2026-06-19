@@ -35,25 +35,25 @@ CHALLENGES = {
         "id": "sql", "name": "SQL Injection", "category": "Web", "difficulty": "Medium",
         "description": "Exploit SQL vulnerabilities to retrieve unauthorized database records or bypass controls.",
         "points": 100, "image": "sql-challenge", "tar": "sql-challenge.tar",
-        "flag": "HTB{sql_injection_master}",
+        "flag": "FLAG{SQL_MASTER}",
     },
     "cookie": {
         "id": "cookie", "name": "Cookie Tampering", "category": "Web", "difficulty": "Easy",
         "description": "Manipulate HTTP cookies to hijack sessions or elevate privileges.",
         "points": 100, "image": "cookie-challenge", "tar": "cookie-challenge.tar",
-        "flag": "HTB{cookie_monster}",
+        "flag": "FLAG{COOKIE_TAMPERING_101}",
     },
     "idor": {
         "id": "idor", "name": "IDOR Challenge", "category": "Web", "difficulty": "Medium",
         "description": "Exploit Insecure Direct Object References to access restricted resources.",
         "points": 150, "image": "idor-challenge", "tar": "idor-challenge.tar",
-        "flag": "HTB{idor_explorer}",
+        "flag": "FLAG{IDOR_FOUND}",
     },
     "roman": {
         "id": "roman", "name": "Roman Challenge", "category": "Crypto", "difficulty": "Easy",
         "description": "Cryptography or encoding challenge based on Roman ciphers or numerals.",
         "points": 50, "image": "roman-challenge", "tar": "roman-challenge.tar",
-        "flag": "HTB{et_tu_brute}",
+        "flag": "FLAG{et_tu_brute}",
     },
 }
 

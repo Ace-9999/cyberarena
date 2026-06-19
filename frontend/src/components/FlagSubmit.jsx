@@ -38,7 +38,7 @@ export default function FlagSubmit({ onSubmit }) {
             style={{ flex: 1, background: 'transparent', border: 'none', borderBottom: '1px solid var(--green)', color: 'var(--text)', outline: 'none', padding: '0.2rem' }}
             autoComplete="off"
             spellCheck="false"
-            placeholder="HTB{...}"
+            placeholder="FLAG{...}"
           />
         </div>
 

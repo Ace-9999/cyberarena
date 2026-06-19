@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Directory | CyberArena</title>
+    <!-- Import Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #05080a;
+            --bg-soft: #0a1014;
+            --green: #39ff88;
+            --amber: #ffb000;
+            --red: #ff3333;
+            --cyan: #00e5ff;
+            --purple: #c084fc;
+            --text: #e0e0e0;
+            --muted: #6b7280;
+            --panel-bg: rgba(5, 8, 10, 0.85);
+            --border: #39ff88;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Subtle CRT scanlines */
+            background-image: repeating-linear-gradient(
+                0deg, rgba(0, 0, 0, 0.15) 0px, rgba(0, 0, 0, 0.15) 1px, transparent 1px, transparent 3px
+            );
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+        }
+
+        /* Container styling */
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 1.5rem;
+            animation: fadeInUp 0.4s ease both;
+        }
+
+        /* Terminal Panel */
+        .terminal-panel {
+            border: 1px solid var(--border);
+            background: var(--panel-bg);
+            box-shadow: 0 0 15px rgba(57, 255, 136, 0.15);
+            border-radius: 4px;
+            overflow: hidden;
+            transition: box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+
+        .terminal-panel:hover {
+            box-shadow: 0 0 25px rgba(57, 255, 136, 0.35);
+            border-color: var(--cyan);
+        }
+
+        .terminal-header {
+            background: var(--bg-soft);
+            border-bottom: 1px solid rgba(57, 255, 136, 0.2);
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .terminal-dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .dot.red { background: var(--red); }
+        .dot.amber { background: var(--amber); }
+        .dot.green { background: var(--green); }
+
+        .terminal-title {
+            color: var(--green);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .terminal-body {
+            padding: 1.5rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        p.subtitle {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Form Controls */
+        .search-group {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .field {
+            flex-grow: 1;
+            background: rgba(5, 8, 10, 0.6);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.75rem 1rem;
+            outline: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            border-radius: 2px;
+            transition: box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+
+        .field:focus {
+            box-shadow: 0 0 10px rgba(57, 255, 136, 0.4);
+            border-color: var(--green);
+        }
+
+        .btn {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--green);
+            color: #000;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.95rem;
+            letter-spacing: 0.05em;
+            border-radius: 2px;
+            transition: filter 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+        }
+
+        .btn:hover:not(:disabled) {
+            filter: brightness(1.15);
+            box-shadow: 0 0 10px rgba(57, 255, 136, 0.3);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        /* Console Output Box */
+        .console-box {
+            border: 1px solid rgba(57, 255, 136, 0.25);
+            background: rgba(5, 8, 10, 0.9);
+            border-radius: 2px;
+            margin-top: 1rem;
+        }
+
+        .console-header {
+            background: rgba(10, 16, 20, 0.8);
+            padding: 0.4rem 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--muted);
+            border-bottom: 1px solid rgba(57, 255, 136, 0.15);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .console-output {
+            margin: 0;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--green);
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            min-height: 80px;
+            max-height: 300px;
+        }
+
+        /* CRT effects & animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .caret {
+            display: inline-block;
+            width: 8px;
+            height: 15px;
+            background: var(--green);
+            margin-left: 4px;
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="terminal-panel">
+        <div class="terminal-header">
+            <div class="terminal-dots">
+                <span class="dot red"></span>
+                <span class="dot amber"></span>
+                <span class="dot green"></span>
+            </div>
+            <div class="terminal-title">employee_portal.sh</div>
+            <div style="width: 42px;"></div> <!-- Spacer to center title -->
+        </div>
+        <div class="terminal-body">
+            <h1>Employee Search Portal</h1>
+            <p class="subtitle">Query the directory database for active operator profiles.</p>
+
+            <div class="search-group">
+                <input id="user" class="field" placeholder="Enter username..." autocomplete="off" onkeydown="if(event.key === 'Enter') search()">
+                <button class="btn" onclick="search()">SEARCH</button>
+            </div>
+
+            <div class="console-box">
+                <div class="console-header">
+                    <span>CONSOLE OUTPUT</span>
+                    <span>STDOUT</span>
+                </div>
+                <pre id="output" class="console-output">SYSTEM READY. Awaiting query...<span class="caret"></span></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function search(){
+    let user = document.getElementById("user").value;
+    let outputEl = document.getElementById("output");
+    
+    outputEl.innerHTML = "Executing query...<span class=\"caret\"></span>";
+    
+    try {
+        let res = await fetch(`/search?username=${encodeURIComponent(user)}`);
+        let data = await res.json();
+        
+        // Print the JSON response raw in the output block, keeping original behavior but styling it beautifully
+        if (data.error) {
+            outputEl.innerHTML = `<span style="color: var(--red);">ERROR: ${escapeHtml(data.error)}</span><span class="caret"></span>`;
+        } else {
+            outputEl.innerHTML = escapeHtml(JSON.stringify(data, null, 2)) + '<span class="caret"></span>';
+        }
+    } catch (err) {
+        outputEl.innerHTML = `<span style="color: var(--red);">NETWORK ERROR: Could not connect to API.</span><span class="caret"></span>`;
+    }
+}
+
+function escapeHtml(text) {
+    return text
+        .toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+</script>
+
+</body>
+</html>
