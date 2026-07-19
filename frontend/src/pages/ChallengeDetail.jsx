@@ -17,6 +17,7 @@ export default function ChallengeDetail() {
   const challenge = challenges.find(c => c.id === id);
   const solved = solvedList.includes(id);
   const isFirstBlood = firstBloods.includes(id);
+  const challengeUrl = instance ? `http://localhost:${instance.port}` : '#';
 
   useEffect(() => {
     if (challenge) {
@@ -120,7 +121,7 @@ export default function ChallengeDetail() {
           <TerminalPanel title="CONNECTION_ESTABLISHED">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <p className="mono" style={{ margin: '0 0 1rem 0' }}>TARGET: <a href={`http://localhost:${instance.port}`} target="_blank" rel="noreferrer" style={{ color: 'var(--green)' }}>http://localhost:{instance.port}</a></p>
+                <p className="mono" style={{ margin: '0 0 1rem 0' }}>TARGET: <a href={challengeUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--green)' }}>http://localhost:{instance.port}</a></p>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                   <button onClick={restart} className="mono" style={{ background: 'transparent', border: '1px solid var(--amber)', color: 'var(--amber)', padding: '0.2rem 0.5rem', cursor: 'pointer' }}>[ RESTART ]</button>
                   <button onClick={stop} className="mono" style={{ background: 'transparent', border: '1px solid var(--red)', color: 'var(--red)', padding: '0.2rem 0.5rem', cursor: 'pointer' }}>[ TERMINATE ]</button>

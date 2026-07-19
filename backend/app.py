@@ -6,11 +6,12 @@ import string
 import secrets
 import subprocess
 
+import requests
 from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent / ".env")  # read backend/.env before anything else
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -105,7 +106,49 @@ def ensure_image_loaded(image_name, tar_file):
     subprocess.run(["docker", "load", "-i", tar_file], check=True)
 
 
-# { container_id: { "last_heartbeat": ms, "challenge_id": id } }
+def get_challenge_security_settings():
+    return {
+        "bind_host": (os.environ.get("CHALLENGE_BIND_HOST", "127.0.0.1") or "127.0.0.1").strip(),
+        "network_name": (os.environ.get("CHALLENGE_NETWORK_NAME", "cyberarena-challenges") or "cyberarena-challenges").strip(),
+        "network_internal": os.environ.get("CHALLENGE_NETWORK_INTERNAL", "false").lower() in {"1", "true", "yes", "on"},
+        "memory_limit": os.environ.get("CHALLENGE_MEMORY_LIMIT", "256m"),
+        "nano_cpus": os.environ.get("CHALLENGE_NANO_CPUS", "500000000"),
+        "pids_limit": int(os.environ.get("CHALLENGE_PIDS_LIMIT", "64")),
+        "proxy_host": (os.environ.get("CHALLENGE_PROXY_HOST", "127.0.0.1") or "127.0.0.1").strip(),
+        "proxy_port": int(os.environ.get("CHALLENGE_PROXY_PORT", "5000") or "5000"),
+    }
+
+
+def ensure_challenge_network(client, network_name, internal):
+    try:
+        network = client.networks.get(network_name)
+        current_internal = bool(network.attrs.get("Internal", False))
+        if current_internal != internal:
+            try:
+                network.remove()
+            except Exception:
+                pass
+            client.networks.create(network_name, driver="bridge", internal=internal)
+    except Exception:
+        try:
+            client.networks.create(network_name, driver="bridge", internal=internal)
+        except Exception as exc:
+            if "already exists" not in str(exc).lower():
+                raise
+
+
+def build_challenge_container_name(challenge_id):
+    return f"cyberarena-{challenge_id}-{secrets.token_hex(3)}"
+
+
+def find_active_challenge_instance(challenge_id):
+    for container_id, meta in active_containers.items():
+        if meta.get("challenge_id") == challenge_id:
+            return container_id, meta
+    return None, None
+
+
+# { container_id: { "last_heartbeat": ms, "challenge_id": id, "container_ip": ip } }
 active_containers = {}
 
 
@@ -264,15 +307,47 @@ def deploy_challenge(challenge_id):
     if not challenge:
         return jsonify({"error": "Challenge not found"}), 404
     try:
+        security = get_challenge_security_settings()
+        client = get_docker()
         ensure_image_loaded(challenge["image"], challenge["tar"])
-        container = get_docker().containers.run(
-            challenge["image"], detach=True, ports={"5000/tcp": None}
+        ensure_challenge_network(client, security["network_name"], security["network_internal"])
+
+        container = client.containers.run(
+            challenge["image"],
+            name=build_challenge_container_name(challenge_id),
+            detach=True,
+            network=security["network_name"],
+            ports={"5000/tcp": (security["bind_host"], None)},
+            mem_limit=security["memory_limit"],
+            nano_cpus=int(security["nano_cpus"]),
+            pids_limit=security["pids_limit"],
+            cap_drop=["ALL"],
+            security_opt=["no-new-privileges:true"],
         )
         container.reload()
-        port = container.attrs["NetworkSettings"]["Ports"]["5000/tcp"][0]["HostPort"]
+        network_settings = container.attrs.get("NetworkSettings", {}).get("Networks", {})
+        container_ip = None
+        if security["network_name"] in network_settings:
+            container_ip = network_settings[security["network_name"]].get("IPAddress")
+        host_port = None
+        port_bindings = container.attrs.get("HostConfig", {}).get("PortBindings", {})
+        if "5000/tcp" in port_bindings and port_bindings["5000/tcp"]:
+            host_port = port_bindings["5000/tcp"][0].get("HostPort")
+        if not host_port:
+            host_port = str(security["proxy_port"])
+        if host_port == "":
+            host_port = str(security["proxy_port"])
+        if host_port in {"0", ""}:
+            host_port = str(security["proxy_port"])
         now = int(time.time() * 1000)
-        active_containers[container.id] = {"last_heartbeat": now, "challenge_id": challenge_id}
-        return jsonify({"container_id": container.id, "host": "localhost", "port": port, "started_at": now})
+        active_containers[container.id] = {
+            "last_heartbeat": now,
+            "challenge_id": challenge_id,
+            "container_ip": security["bind_host"],
+            "container_port": int(host_port),
+            "proxy_host": security["bind_host"],
+        }
+        return jsonify({"container_id": container.id, "host": security["bind_host"], "port": host_port, "started_at": now})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -306,6 +381,67 @@ def challenge_heartbeat(challenge_id):
         return jsonify({"error": "Container not found or expired"}), 404
     active_containers[container_id]["last_heartbeat"] = int(time.time() * 1000)
     return jsonify({"success": True})
+
+
+@app.route("/api/challenges/<challenge_id>/proxy", defaults={"subpath": ""}, methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+@app.route("/api/challenges/<challenge_id>/proxy/", defaults={"subpath": ""}, methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+@app.route("/api/challenges/<challenge_id>/proxy/<path:subpath>", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+@optional_auth
+def proxy_challenge_request(challenge_id, subpath=""):
+    container_id, instance = find_active_challenge_instance(challenge_id)
+    if not instance:
+        return jsonify({"error": "Challenge instance is not running"}), 404
+
+    target_path = f"/{subpath}" if subpath else ""
+    target_host = instance.get("proxy_host") or instance.get("container_ip") or "127.0.0.1"
+    target_port = instance.get("container_port") or instance.get("proxy_port") or 5000
+    target_url = f"http://{target_host}:{target_port}{target_path or '/'}"
+
+    forwarded_headers = dict(request.headers)
+    forwarded_headers.pop("Host", None)
+    forwarded_headers.pop("Content-Length", None)
+    forwarded_headers["X-Forwarded-For"] = request.remote_addr or "127.0.0.1"
+    forwarded_headers["X-Forwarded-Proto"] = request.scheme
+    forwarded_headers["X-Forwarded-Host"] = request.host
+
+    last_exc = None
+    for attempt in range(3):
+        try:
+            response = requests.request(
+                method=request.method,
+                url=target_url,
+                params=request.args.to_dict(flat=False) or None,
+                data=request.get_data(),
+                headers=forwarded_headers,
+                timeout=10,
+                allow_redirects=False,
+            )
+            break
+        except requests.RequestException as exc:
+            last_exc = exc
+            time.sleep(1)
+    else:
+        return jsonify({"error": str(last_exc)}), 502
+
+    excluded_headers = {
+        "content-encoding",
+        "content-length",
+        "transfer-encoding",
+        "connection",
+        "server",
+        "date",
+        "keep-alive",
+        "proxy-authenticate",
+        "proxy-authorization",
+        "te",
+        "trailers",
+        "upgrade",
+    }
+    headers = {
+        k: v for k, v in response.headers.items()
+        if k.lower() not in excluded_headers
+    }
+    return Response(response.content, status=response.status_code, headers=headers, content_type=response.headers.get("content-type", "application/octet-stream"))
 
 
 @app.route("/api/challenges/<challenge_id>/submit", methods=["POST"])
