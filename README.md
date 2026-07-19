@@ -68,8 +68,19 @@ Before running CyberArena, ensure you have the following installed:
    > The anon key only enables live leaderboard auto-refresh — the app still works without it.
 
 5. **Install backend dependencies:**
+   On Linux/Ubuntu, it is best to use a project-local virtual environment so you do not modify the system Python:
    ```bash
    cd backend
+   sudo apt update
+   sudo apt install -y python3.12-venv
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+   If you already created the environment, you can reuse it with:
+   ```bash
+   cd backend
+   source venv/bin/activate
    pip install -r requirements.txt
    ```
 
