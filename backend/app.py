@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import time
 import random
@@ -329,15 +330,25 @@ def deploy_challenge(challenge_id):
         container_ip = None
         if security["network_name"] in network_settings:
             container_ip = network_settings[security["network_name"]].get("IPAddress")
+        # The *actual* published host port lives in NetworkSettings.Ports; the
+        # requested binding in HostConfig.PortBindings is empty when we ask
+        # Docker for a dynamic port (HostPort=None), so read it here. Retry a
+        # couple of times in case the port publish hasn't been recorded yet.
         host_port = None
-        port_bindings = container.attrs.get("HostConfig", {}).get("PortBindings", {})
-        if "5000/tcp" in port_bindings and port_bindings["5000/tcp"]:
-            host_port = port_bindings["5000/tcp"][0].get("HostPort")
+        for _ in range(5):
+            ns_ports = container.attrs.get("NetworkSettings", {}).get("Ports", {}) or {}
+            binding = ns_ports.get("5000/tcp")
+            if binding and binding[0].get("HostPort"):
+                host_port = binding[0]["HostPort"]
+                break
+            time.sleep(0.3)
+            container.reload()
         if not host_port:
-            host_port = str(security["proxy_port"])
-        if host_port == "":
-            host_port = str(security["proxy_port"])
-        if host_port in {"0", ""}:
+            # Fall back to the requested binding, then the configured default.
+            port_bindings = container.attrs.get("HostConfig", {}).get("PortBindings", {})
+            if port_bindings.get("5000/tcp"):
+                host_port = port_bindings["5000/tcp"][0].get("HostPort")
+        if not host_port or host_port in {"0", ""}:
             host_port = str(security["proxy_port"])
         now = int(time.time() * 1000)
         active_containers[container.id] = {
@@ -383,6 +394,46 @@ def challenge_heartbeat(challenge_id):
     return jsonify({"success": True})
 
 
+# Rewrite root-relative URLs in a proxied response body so they stay under the
+# challenge proxy prefix. Challenge apps hardcode paths like `/login`,
+# `/static/style.css`, `redirect("/dashboard")` and inline `fetch("/search")`,
+# which would otherwise resolve against the backend origin and escape the proxy.
+_ATTR_ABS_URL_RE = re.compile(r'((?:href|src|action|formaction)\s*=\s*["\'])/(?!/|api/challenges/[^/]+/proxy\b)', re.IGNORECASE)
+_FETCH_ABS_URL_RE = re.compile(r'((?:fetch\(|XMLHttpRequest\W|\.open\()\s*["\'`])/(?!/|api/challenges/[^/]+/proxy\b)', re.IGNORECASE)
+
+
+def rewrite_proxied_body(body_bytes, content_type, prefix):
+    """Prefix root-relative URLs in HTML/JS bodies with the proxy path."""
+    if not content_type:
+        return body_bytes
+    ct = content_type.lower()
+    if not ("text/html" in ct or "javascript" in ct or "application/xhtml" in ct):
+        return body_bytes
+    try:
+        text = body_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        return body_bytes
+    text = _ATTR_ABS_URL_RE.sub(lambda m: m.group(1) + prefix + "/", text)
+    text = _FETCH_ABS_URL_RE.sub(lambda m: m.group(1) + prefix + "/", text)
+    return text.encode("utf-8")
+
+
+def rewrite_location_header(location, target_host, target_port, prefix):
+    """Keep redirect targets inside the proxy prefix."""
+    if not location:
+        return location
+    # Strip an absolute URL that points back at the container itself.
+    for host_url in (f"http://{target_host}:{target_port}", f"http://{target_host}"):
+        if location.startswith(host_url):
+            location = location[len(host_url):] or "/"
+            break
+    # Root-relative (but not protocol-relative //host) -> add the proxy prefix.
+    if location.startswith("/") and not location.startswith("//"):
+        if not location.startswith(prefix + "/") and location != prefix:
+            location = prefix + location
+    return location
+
+
 @app.route("/api/challenges/<challenge_id>/proxy", defaults={"subpath": ""}, methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 @app.route("/api/challenges/<challenge_id>/proxy/", defaults={"subpath": ""}, methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 @app.route("/api/challenges/<challenge_id>/proxy/<path:subpath>", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
@@ -396,6 +447,7 @@ def proxy_challenge_request(challenge_id, subpath=""):
     target_host = instance.get("proxy_host") or instance.get("container_ip") or "127.0.0.1"
     target_port = instance.get("container_port") or instance.get("proxy_port") or 5000
     target_url = f"http://{target_host}:{target_port}{target_path or '/'}"
+    proxy_prefix = f"/api/challenges/{challenge_id}/proxy"
 
     forwarded_headers = dict(request.headers)
     forwarded_headers.pop("Host", None)
@@ -441,7 +493,12 @@ def proxy_challenge_request(challenge_id, subpath=""):
         k: v for k, v in response.headers.items()
         if k.lower() not in excluded_headers
     }
-    return Response(response.content, status=response.status_code, headers=headers, content_type=response.headers.get("content-type", "application/octet-stream"))
+    if "Location" in headers:
+        headers["Location"] = rewrite_location_header(headers["Location"], target_host, target_port, proxy_prefix)
+
+    content_type = response.headers.get("content-type", "application/octet-stream")
+    body = rewrite_proxied_body(response.content, content_type, proxy_prefix)
+    return Response(body, status=response.status_code, headers=headers, content_type=content_type)
 
 
 @app.route("/api/challenges/<challenge_id>/submit", methods=["POST"])
