@@ -2,7 +2,7 @@
 
 CyberArena is a self-hosted Capture The Flag (CTF) platform featuring a **React SPA (Single Page Application)** frontend and a **Flask JSON API** backend, backed by a **Supabase (Postgres)** database for accounts, teams, and scoring. It uses **Docker** to launch individual CTF challenges on-demand.
 
-For an in-depth, step-by-step technical breakdown of the API, auth, scoring, and container lifecycle, read [HOW_IT_WORKS.md](HOW_IT_WORKS.md). For database setup, see [SUPABASE_SETUP.md](SUPABASE_SETUP.md).
+For an in-depth, step-by-step technical breakdown of the API, auth, scoring, and container lifecycle, read [HOW_IT_WORKS.md](HOW_IT_WORKS.md). For database setup, see [SUPABASE_SETUP.md](SUPABASE_SETUP.md). For deployment guidance that keeps challenge containers isolated and secure, see [SECURITY_DEPLOYMENT.md](SECURITY_DEPLOYMENT.md).
 
 ---
 
